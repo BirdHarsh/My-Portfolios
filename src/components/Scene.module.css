@@ -1,0 +1,12 @@
+/* Ensures the canvas fills its container */
+.canvasContainer {
+    width: 100%;
+    height: 100%;
+  }
+  
+  /* Full-size Canvas */
+  .fullSizeCanvas {
+    width: 100%;
+    height: 100%;
+  }
+  
