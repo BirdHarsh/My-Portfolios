@@ -1,47 +1,70 @@
 "use client"; // Mark as Client Component
 
-import { useState, useEffect } from "react";
-import { useGLTF } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useState, useEffect } from "react";
+import { useGLTF, useTexture } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
 
 useGLTF.preload("/cypher.glb");
 
 export default function Model() {
   const { scene } = useGLTF("/cypher.glb");
+  const texture = useTexture("/texture1.png"); // Load texture
+  const { camera } = useThree();
+  const progress = useRef(0); // Animation progress
 
-  // State to track the mouse position
+  // Mouse Position State
   const [mousePos, setMousePos] = useState([0, 0]);
 
-  // Handle mouse movement and update the state
+  // Define a curved path using Bezier curve control points
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-5, 5, 10), // Start (left, high, far)
+    new THREE.Vector3(0, 6, 6),   // Midpoint (center, high, mid)
+    new THREE.Vector3(5, 2, 0),   // End (right, low, close)
+  ]);
+
+  // Apply texture to the model
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child.isMesh) {
+        child.material.map = texture; // Apply texture
+        child.material.needsUpdate = true; // Refresh material
+      }
+    });
+  }, [scene, texture]);
+
+  // Handle mouse movement to track cursor
   useEffect(() => {
     const handleMouseMove = (event) => {
-      // Normalize mouse position to [-1, 1] range
-      const x = (event.clientX / window.innerWidth) * 2 - 1;
-      const y = -(event.clientY / window.innerHeight) * 2 + 1;
+      const x = (event.clientX / window.innerWidth) * 2 - 1; // Normalize X
+      const y = -(event.clientY / window.innerHeight) * 2 + 1; // Normalize Y
       setMousePos([x, y]);
     };
 
-    // Listen to mousemove event
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
     };
   }, []);
 
-  // Use `useFrame` to update the head bone's rotation
+  // Animate camera movement along curve & head following mouse
   useFrame(() => {
-    const headBone = scene.getObjectByName("Head"); // Replace with actual bone name if different
+    // Move camera along curved path
+    if (progress.current < 1) {
+      progress.current += 0.01; // Adjust speed
+      const point = curve.getPoint(progress.current);
+      camera.position.copy(point);
+      camera.lookAt(0, 0, 0);
+    }
+
+    // Rotate head based on mouse movement
+    const headBone = scene.getObjectByName("Head"); // Ensure this matches your GLTF hierarchy
     if (headBone) {
-      // Map mouse position to a rotation for the head
       const [mouseX, mouseY] = mousePos;
-      headBone.rotation.y = mouseX * Math.PI / 4;  // Adjust rotation factor as needed
-      headBone.rotation.x = -mouseY * Math.PI / 4; // Adjust rotation factor as needed
+      headBone.rotation.y = mouseX * Math.PI / 4;  // Adjust rotation factor
+      headBone.rotation.x = -mouseY * Math.PI / 4; // Adjust rotation factor
     }
   });
 
-  return (
-    <group>
-      <primitive object={scene} scale={3} position={[0, -3.5, 0]} />
-    </group>
-  );
+  return <primitive object={scene} scale={1}  position={[0, -1, 0]} rotation={[0, 0, 0]} />;
 }
